@@ -50,7 +50,8 @@ interface State {
 
 /*
  * Figure with label overlays on top of entities.
- * TODO(andrewhead): only label the first instance
+ * TODO(andrewhead): if the symbol has subsymbols, we may need to add a line to indicate
+ * that the label applies to the parent symbol.
  */
 class Figure extends React.PureComponent<Props, State> {
   constructor(props: Props) {
@@ -148,14 +149,14 @@ class Figure extends React.PureComponent<Props, State> {
     const height = bottom - top;
 
     return (
-      <div className="figure">
+      <div style={{ position: "absolute", left, top }} className="figure">
         <svg
           viewBox={`${left} ${top} ${width} ${height}`}
           width={width}
           height={height}
         >
           <g className="feature-layer">
-            {entities.map((e) => (
+            {filtered.map((e) => (
               <rect
                 key={e.id}
                 className="feature"
@@ -180,9 +181,20 @@ class Figure extends React.PureComponent<Props, State> {
               />
             ))}
           </g>
-          <g className="link-layer">
+          <g className="leader-layer">
             {labels.map((l) => (
-              <path key={l.entity.id} className="link" d={createLeader(l)} />
+              <g className="leader">
+                <path
+                  key={`${l.entity.id}-leader-background`}
+                  className="leader-background"
+                  d={createLeader(l)}
+                />
+                <path
+                  key={`${l.entity.id}-leader-line`}
+                  className="leader-line"
+                  d={createLeader(l)}
+                />
+              </g>
             ))}
           </g>
         </svg>
@@ -262,7 +274,7 @@ function createLabels(
     const labelWidth = textDimensions[e.label].width + (labelPadding || 0) * 2;
     return new Labella.Node(idealX, labelWidth, { entityId: e.id });
   });
-  const force = new Labella.Force({ algorithm: "none" });
+  const force = new Labella.Force({ algorithm: "none", nodeSpacing: 8 });
   force.nodes(nodes).compute();
 
   boundaryMargin = boundaryMargin || 0;

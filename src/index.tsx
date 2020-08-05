@@ -86,7 +86,10 @@ const height = bottom - top;
 
 ReactDOM.render(
   <React.StrictMode>
-    <Figure entities={entities} drawingArea={{ left, top, width, height }} />
+    <div style={{ margin: "100px", position: "relative" }}>
+      <img src={require("./equation.png")} alt="" />
+      <Figure entities={entities} drawingArea={{ left, top, width, height }} />
+    </div>
   </React.StrictMode>,
   document.getElementById("root")
 );
