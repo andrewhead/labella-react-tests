@@ -17,22 +17,30 @@ code {
   font-size: 12px;
 }
 
-rect.flag {
-  stroke: black;
-  fill: lightyellow;
+rect.label__background {
+  fill: none;
+}
+
+g.labeled-feature:hover rect.label__background {
+  fill: yellow;
+  opacity: 0.2;
 }
 
 rect.feature {
-  /* stroke: green; */
+  stroke: none;
   fill: none;
-  /* opacity: 0.6; */
+}
+
+g.labeled-feature:hover rect.feature {
+  fill: blue;
+  opacity: 0.2;
 }
 
 g.leader {
-  opacity: 0.8;
+  opacity: 0.5;
 }
 
-g.leader:hover {
+g.labeled-feature:hover g.leader {
   opacity: 1;
 }
 

@@ -15,7 +15,7 @@ class Label extends React.PureComponent<Props> {
     const { x, y, width, height, text, labelPadding } = this.props;
     return (
       <g className="label" transform={`translate(${x}, ${y})`}>
-        <rect className="flag" width={width} height={height} />
+        <rect className="label__background" width={width} height={height} />
         <text
           className={this.props.textClassname}
           x={2}

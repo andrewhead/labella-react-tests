@@ -154,22 +154,16 @@ class Figure extends React.PureComponent<Props, State> {
         width={width}
         height={height}
       >
-        <g className="feature-layer">
-          {filtered.map((e) => (
+        {labels.map((l) => (
+          <g key={l.entity.id} className="labeled-feature">
             <rect
-              key={e.id}
               className="feature"
-              x={e.location.left}
-              y={e.location.top}
-              width={e.location.width}
-              height={e.location.height}
+              x={l.entity.location.left}
+              y={l.entity.location.top}
+              width={l.entity.location.width}
+              height={l.entity.location.height}
             />
-          ))}
-        </g>
-        <g className="label-layer">
-          {labels.map((l) => (
             <Label
-              key={l.entity.id}
               textClassname="label__text"
               x={l.left}
               y={l.top}
@@ -178,24 +172,18 @@ class Figure extends React.PureComponent<Props, State> {
               text={l.text}
               labelPadding={LABEL_PADDING}
             />
-          ))}
-        </g>
-        <g className="leader-layer">
-          {labels.map((l) => (
-            <g key={l.entity.id} className="leader">
+            <g className="leader">
               <path
-                key={`${l.entity.id}-leader-background`}
                 className="leader-background"
                 d={createLeader(l, FEATURE_MARGIN)}
               />
               <path
-                key={`${l.entity.id}-leader-line`}
                 className="leader-line"
                 d={createLeader(l, FEATURE_MARGIN)}
               />
             </g>
-          ))}
-        </g>
+          </g>
+        ))}
       </svg>
     );
   }
@@ -301,9 +289,10 @@ function createLabels(
 }
 
 /**
- * Generate L-shaped leaders, which seem to have a good balance between usability and user
- * preferability. For a review of the terms used in this function, and of the justification for
- * L-shaped leaders, see Barth et al., "On the readability of leaders in boundary labeling", 2019.
+ * Generate L-shaped leaders, which seem to have a good balance between usability and
+ * likability. For a review of the terms used in this function, and of the justification for
+ * using L-shaped leaders, see Barth et al.,
+ * "On the readability of leaders in boundary labeling", 2019.
  */
 function createLeader(label: LabelNode, featureMargin?: number) {
   const feature = label.entity.location;
