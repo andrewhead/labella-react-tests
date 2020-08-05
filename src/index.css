@@ -23,9 +23,9 @@ rect.flag {
 }
 
 rect.feature {
-  stroke: green;
+  /* stroke: green; */
   fill: none;
-  opacity: 0.6;
+  /* opacity: 0.6; */
 }
 
 g.leader {
@@ -38,12 +38,12 @@ g.leader:hover {
 
 path.leader-background {
   stroke: white;
-  stroke-width: 3;
+  stroke-width: 4;
   fill: none;
 }
 
 path.leader-line {
-  stroke: darkslategray;
+  stroke: lightseagreen;
   stroke-width: 1;
   fill: none;
 }

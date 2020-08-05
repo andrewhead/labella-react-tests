@@ -108,7 +108,7 @@ class Figure extends React.PureComponent<Props, State> {
     const topEntities = entityGroups.first;
     const bottomEntities = entityGroups.second;
 
-    const BOUNDARY_MARGIN = 5;
+    const BOUNDARY_MARGIN = 15;
     const LABEL_PADDING = 2;
     const topLabels = createLabels(
       topEntities,
@@ -148,6 +148,8 @@ class Figure extends React.PureComponent<Props, State> {
     const width = right - left;
     const height = bottom - top;
 
+    const FEATURE_MARGIN = 2;
+
     return (
       <div style={{ position: "absolute", left, top }} className="figure">
         <svg
@@ -183,16 +185,16 @@ class Figure extends React.PureComponent<Props, State> {
           </g>
           <g className="leader-layer">
             {labels.map((l) => (
-              <g className="leader">
+              <g key={l.entity.id} className="leader">
                 <path
                   key={`${l.entity.id}-leader-background`}
                   className="leader-background"
-                  d={createLeader(l)}
+                  d={createLeader(l, FEATURE_MARGIN)}
                 />
                 <path
                   key={`${l.entity.id}-leader-line`}
                   className="leader-line"
-                  d={createLeader(l)}
+                  d={createLeader(l, FEATURE_MARGIN)}
                 />
               </g>
             ))}
@@ -299,34 +301,11 @@ function createLabels(
  * preferability. For a review of the terms used in this function, and of the justification for
  * L-shaped leaders, see Barth et al., "On the readability of leaders in boundary labeling", 2019.
  */
-function createLeader(label: LabelNode) {
+function createLeader(label: LabelNode, featureMargin?: number) {
   const feature = label.entity.location;
   const { where } = label;
 
-  /*
-   * Determine the point where the leader connects to the entity (i.e., feature). Leader should
-   * not occlude the feature. There should only be a bend in the line if the label is not
-   * vertically aligned to the feature.
-   */
-  let site;
-  if (label.x < feature.left) {
-    site = { x: feature.left, y: feature.top + feature.height / 2 };
-  } else if (label.x > feature.left + feature.width) {
-    site = {
-      x: feature.left + feature.width,
-      y: feature.top + feature.height / 2,
-    };
-  } else {
-    site = {
-      x: label.x,
-      y: where === "above" ? feature.top : feature.top + feature.height,
-    };
-  }
-
-  /*
-   * The leader extends vertically from the label, and bends at the y-position of the feature.
-   */
-  let midpoint = { x: label.x, y: site.y };
+  featureMargin = featureMargin || 0;
 
   /*
    * The leader leaves the label from the middle of the label.
@@ -337,13 +316,70 @@ function createLeader(label: LabelNode) {
   };
 
   /*
+   * The leader connects to the entity (i.e., feature) at a site. The site is chosen in a way
+   * that the leader will not pass through the feature. If possible, the leader will be purely
+   * vertical; otherwise, if the label doesn't align with the feature, the label will connect
+   * on the side of the feature.
+   */
+  let site;
+  if (label.x < feature.left) {
+    site = {
+      x: feature.left - featureMargin,
+      y: feature.top + feature.height / 2,
+      side: "left",
+    };
+  } else if (label.x > feature.left + feature.width) {
+    site = {
+      x: feature.left + feature.width + featureMargin,
+      y: feature.top + feature.height / 2,
+      side: "right",
+    };
+  } else if (where === "above") {
+    site = {
+      x: feature.left + feature.width / 2,
+      y: feature.top - featureMargin,
+      side: "top",
+    };
+  } else {
+    site = {
+      x: feature.left + feature.width / 2,
+      y: feature.top + feature.height + featureMargin,
+      side: "bottom",
+    };
+  }
+
+  /*
+   * The leader extends vertically from the label and, if it is not aligned horizontally
+   * with the feature, makes an L-shaped bend at the y-position of the feature.
+   */
+  let midpoint = { x: label.x, y: site.y };
+
+  /*
+   * Add an edge to the leader line covering the entire side of the feature on which the leader
+   * line connects.
+   */
+  let featureEdge;
+  if (site.side === "left" || site.side === "right") {
+    featureEdge = [
+      { x: site.x, y: feature.top },
+      { x: site.x, y: feature.top + feature.height },
+    ];
+  } else {
+    featureEdge = [
+      { x: feature.left, y: site.y },
+      { x: feature.left + feature.width, y: site.y },
+    ];
+  }
+
+  /*
    * Path is expressed in SVG path coordinates:
    * https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d
    */
   return (
-    `M ${port.x}, ${port.y}` +
-    `L ${midpoint.x}, ${midpoint.y}` +
-    `L ${site.x}, ${site.y}`
+    `M ${port.x}, ${port.y} ` +
+    `L ${midpoint.x}, ${midpoint.y} ` +
+    `L ${site.x}, ${site.y} ` +
+    featureEdge.map((p) => `L ${p.x}, ${p.y}`)
   );
 }
 
