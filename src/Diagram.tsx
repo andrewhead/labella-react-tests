@@ -6,11 +6,24 @@ import TextDimensionsCalculator, {
   Dimensions,
 } from "./TextDimensionsCalculator";
 
+export interface LabelSpec {
+  text: string;
+  /**
+   * Site in the diagram that the label is labeling.
+   */
+  site: { x: number; y: number };
+}
+
 interface AdjustedNode extends Node {
   x: number;
   y: number;
   dx: number;
   dy: number;
+  /**
+   * Store reference to the renderer that rendered this node, so that it can be acessed again
+   * when generating a path for this node.
+   */
+  renderer: Renderer;
 }
 
 interface Props {
@@ -60,49 +73,42 @@ class Diagram extends React.PureComponent<Props, State> {
       );
     }
 
-    /**
-     * Once the text widths are available (in a second render), dynamically determine the positions
-     * of the width based on their desired positions, and re-render them in their new positions.
-     */
-    const nodes = this.props.labels.map(
-      (d) =>
-        new Node(d.site.x * 2, textDimensions[d.text].width + 4, {
-          text: d.text,
-        })
-    );
-
-    const force = new Force({ minPos: 0, maxPos: 960 });
-    force.nodes(nodes).compute();
-
-    let textHeight = 0;
-    Object.values(textDimensions).forEach((d) => {
-      textHeight = d.height > textHeight ? d.height : textHeight;
-    });
-
     /*
-     * Lay out the nodes.
+     * Split nodes into those that will appear above and below the diagram. Lay them out separately.
      */
-    const renderer = new Renderer({
-      layerGap: 60,
-      nodeHeight: textHeight,
-      direction: "up",
-    });
-    renderer.layout(nodes);
-    const adjustedNodes = nodes as AdjustedNode[];
+    const { labels } = this.props;
+    const { dimensions: drawAreaDimensions } = this.props;
+    const topLabels = labels.slice(0, labels.length / 2);
+    const bottomLabels = labels.slice(labels.length / 2, labels.length);
+    const topNodes = layoutNodes(
+      topLabels,
+      0,
+      drawAreaDimensions.width,
+      textDimensions,
+      "above-drawing-area"
+    );
+    const bottomNodes = layoutNodes(
+      bottomLabels,
+      0,
+      drawAreaDimensions.width,
+      textDimensions,
+      "below-drawing-area"
+    );
 
     /*
      * Determine SVG canvas dimensions dynamically based on what will fit both the drawing area
      * and the labels.
      */
-    const minX = Math.min(0, ...adjustedNodes.map((n) => n.x));
+    const allNodes = [...topNodes, ...bottomNodes];
+    const minX = Math.min(0, ...allNodes.map((n) => n.x));
     const maxX = Math.max(
       this.props.dimensions.width,
-      ...adjustedNodes.map((n) => n.x + n.dx)
+      ...allNodes.map((n) => n.x + n.dx)
     );
-    const minY = Math.min(0, ...adjustedNodes.map((n) => n.y));
+    const minY = Math.min(0, ...allNodes.map((n) => n.y));
     const maxY = Math.max(
       this.props.dimensions.height,
-      ...adjustedNodes.map((n) => n.y + n.dy)
+      ...allNodes.map((n) => n.y + n.dy)
     );
     const width = maxX - minX;
     const height = maxY - minY;
@@ -116,7 +122,7 @@ class Diagram extends React.PureComponent<Props, State> {
             height={height}
           >
             <g className="label-layer">
-              {adjustedNodes.map((n, i) => (
+              {allNodes.map((n, i) => (
                 <Label
                   key={i}
                   textClassname="label__text"
@@ -129,8 +135,8 @@ class Diagram extends React.PureComponent<Props, State> {
               ))}
             </g>
             <g className="link-layer">
-              {adjustedNodes.map((n, i) => (
-                <path key={i} className="link" d={renderer.generatePath(n)} />
+              {allNodes.map((n, i) => (
+                <path key={i} className="link" d={n.renderer.generatePath(n)} />
               ))}
             </g>
           </svg>
@@ -138,6 +144,48 @@ class Diagram extends React.PureComponent<Props, State> {
       </div>
     );
   }
+}
+
+function layoutNodes(
+  labels: LabelSpec[],
+  minX: number,
+  maxX: number,
+  textDimensions: { [text: string]: Dimensions },
+  direction: "above-drawing-area" | "below-drawing-area"
+): AdjustedNode[] {
+  /*
+   * Once the text widths are available (in a second render), dynamically determine the positions
+   * of the width based on their desired positions, and re-render them in their new positions.
+   */
+  const nodes = labels.map(
+    (d) =>
+      new Node(d.site.x, textDimensions[d.text].width + 4, {
+        text: d.text,
+      })
+  );
+
+  let textHeight = Math.max(
+    ...Object.values(textDimensions).map((d) => d.height)
+  );
+
+  /*
+   * Lay out the nodes.
+   */
+  const force = new Force({ minPos: minX, maxPos: maxX });
+  force.nodes(nodes).compute();
+  const renderer = new Renderer({
+    layerGap: 60,
+    nodeHeight: textHeight,
+    direction: direction === "above-drawing-area" ? "up" : "down",
+  });
+  renderer.layout(nodes);
+
+  /*
+   * Save a reference to the renderer for generating paths.
+   */
+  const adjusted = nodes as AdjustedNode[];
+  adjusted.forEach((n) => (n.renderer = renderer));
+  return adjusted;
 }
 
 export default Diagram;

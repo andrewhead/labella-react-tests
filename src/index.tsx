@@ -1,16 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import Diagram from "./Diagram";
+import Diagram, { LabelSpec } from "./Diagram";
 import "./index.css";
 import * as serviceWorker from "./serviceWorker";
-
-interface LabelSpec {
-  text: string;
-  /**
-   * Site in the diagram that the label is labeling.
-   */
-  site: { x: number; y: number };
-}
 
 const LABELS: LabelSpec[] = [
   { text: "Snape", site: { x: 9, y: 0 } },
