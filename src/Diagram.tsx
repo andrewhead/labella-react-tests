@@ -14,7 +14,11 @@ interface AdjustedNode extends Node {
 }
 
 interface Props {
-  labels: { x: number; text: string }[];
+  labels: { text: string; site: { x: number; y: number } }[];
+  /**
+   * Dimensions of the drawing area (doesn't include labels).
+   */
+  dimensions: Dimensions;
 }
 
 interface State {
@@ -22,9 +26,10 @@ interface State {
 }
 
 /*
- * Starter source code from view-source:https://twitter.github.io/labella.js/with_text2.html
+ * Starter source code from view-source: https://twitter.github.io/labella.js/with_text2.html
+ * TODO: align the SVG over an absolute existing location on the page
  */
-class App extends React.PureComponent<Props, State> {
+class Diagram extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -42,7 +47,7 @@ class App extends React.PureComponent<Props, State> {
      * First, render just the text elements to get their widths. These widths are needed in order
      * to dynamically layout the elements.
      */
-    const { textDimensions: textDimensions } = this.state;
+    const { textDimensions } = this.state;
     if (textDimensions === null) {
       return (
         <svg>
@@ -61,7 +66,9 @@ class App extends React.PureComponent<Props, State> {
      */
     const nodes = this.props.labels.map(
       (d) =>
-        new Node(d.x * 2, textDimensions[d.text].width + 4, { text: d.text })
+        new Node(d.site.x * 2, textDimensions[d.text].width + 4, {
+          text: d.text,
+        })
     );
 
     const force = new Force({ minPos: 0, maxPos: 960 });
@@ -71,21 +78,43 @@ class App extends React.PureComponent<Props, State> {
     Object.values(textDimensions).forEach((d) => {
       textHeight = d.height > textHeight ? d.height : textHeight;
     });
+
+    /*
+     * Lay out the nodes.
+     */
     const renderer = new Renderer({
       layerGap: 60,
       nodeHeight: textHeight,
+      direction: "up",
     });
-
     renderer.layout(nodes);
     const adjustedNodes = nodes as AdjustedNode[];
 
-    const svgWidth = 800;
-    const svgHeight = 220;
+    /*
+     * Determine SVG canvas dimensions dynamically based on what will fit both the drawing area
+     * and the labels.
+     */
+    const minX = Math.min(0, ...adjustedNodes.map((n) => n.x));
+    const maxX = Math.max(
+      this.props.dimensions.width,
+      ...adjustedNodes.map((n) => n.x + n.dx)
+    );
+    const minY = Math.min(0, ...adjustedNodes.map((n) => n.y));
+    const maxY = Math.max(
+      this.props.dimensions.height,
+      ...adjustedNodes.map((n) => n.y + n.dy)
+    );
+    const width = maxX - minX;
+    const height = maxY - minY;
 
     return (
       <div className="App">
         <header className="App-header">
-          <svg width={svgWidth} height={svgHeight}>
+          <svg
+            viewBox={`${minX} ${minY} ${width} ${height}`}
+            width={width}
+            height={height}
+          >
             <g className="label-layer">
               {adjustedNodes.map((n, i) => (
                 <Label
@@ -111,4 +140,4 @@ class App extends React.PureComponent<Props, State> {
   }
 }
 
-export default App;
+export default Diagram;

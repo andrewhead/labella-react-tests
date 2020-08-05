@@ -1,25 +1,33 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import App from "./App";
+import Diagram from "./Diagram";
 import "./index.css";
 import * as serviceWorker from "./serviceWorker";
 
-const LABELS = [
-  { x: 9, text: "Snape" },
-  { x: 30, text: "Lily" },
-  { x: 61, text: "Ron" },
-  { x: 87, text: "James" },
-  { x: 155, text: "Draco" },
-  { x: 210, text: "Neville" },
-  { x: 211, text: "Harry" },
-  { x: 259, text: "Hermione" },
-  { x: 336, text: "Hagrid" },
-  { x: 361, text: "Voldemort" },
+interface LabelSpec {
+  text: string;
+  /**
+   * Site in the diagram that the label is labeling.
+   */
+  site: { x: number; y: number };
+}
+
+const LABELS: LabelSpec[] = [
+  { text: "Snape", site: { x: 9, y: 0 } },
+  { text: "Lily", site: { x: 30, y: 0 } },
+  { text: "Ron", site: { x: 61, y: 0 } },
+  { text: "James", site: { x: 87, y: 0 } },
+  { text: "Draco", site: { x: 155, y: 0 } },
+  { text: "Neville", site: { x: 210, y: 0 } },
+  { text: "Harry", site: { x: 211, y: 0 } },
+  { text: "Hermione", site: { x: 259, y: 0 } },
+  { text: "Hagrid", site: { x: 336, y: 0 } },
+  { text: "Voldemort", site: { x: 361, y: 0 } },
 ];
 
 ReactDOM.render(
   <React.StrictMode>
-    <App labels={LABELS} />
+    <Diagram labels={LABELS} dimensions={{ width: 400, height: 300 }} />
   </React.StrictMode>,
   document.getElementById("root")
 );
