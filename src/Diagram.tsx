@@ -108,7 +108,7 @@ class Figure extends React.PureComponent<Props, State> {
     const topEntities = entityGroups.first;
     const bottomEntities = entityGroups.second;
 
-    const BOUNDARY_MARGIN = 15;
+    const BOUNDARY_MARGIN = 20;
     const LABEL_PADDING = 2;
     const topLabels = createLabels(
       topEntities,

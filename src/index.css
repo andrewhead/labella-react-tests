@@ -13,26 +13,30 @@ code {
 }
 
 .label__text {
-  fill: black;
-  font-size: 12px;
+  fill: darkslategrey;
+  font-size: 10px;
 }
 
 rect.label__background {
-  fill: none;
+  fill: yellow;
+  opacity: 0;
+}
+
+g.labeled-feature:hover {
+  cursor: default;
 }
 
 g.labeled-feature:hover rect.label__background {
-  fill: yellow;
   opacity: 0.2;
 }
 
 rect.feature {
   stroke: none;
-  fill: none;
+  fill: blue;
+  opacity: 0;
 }
 
 g.labeled-feature:hover rect.feature {
-  fill: blue;
   opacity: 0.2;
 }
 
