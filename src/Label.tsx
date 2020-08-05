@@ -7,15 +7,20 @@ interface Props {
   width: number;
   height: number;
   text: string;
+  labelPadding?: number;
 }
 
 class Label extends React.PureComponent<Props> {
   render() {
-    const { x, y, width, height, text } = this.props;
+    const { x, y, width, height, text, labelPadding } = this.props;
     return (
       <g className="label" transform={`translate(${x}, ${y})`}>
-        <rect className="flag" width={width} height={height + 4} />
-        <text className={this.props.textClassname} x={2} y={height - 1}>
+        <rect className="flag" width={width} height={height} />
+        <text
+          className={this.props.textClassname}
+          x={2}
+          y={height - (labelPadding || 0) * 2}
+        >
           {text}
         </text>
       </g>
