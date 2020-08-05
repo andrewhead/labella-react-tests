@@ -1,4 +1,4 @@
-import { Force, Node, Renderer } from "labella";
+import { Force, Node } from "labella";
 import React from "react";
 import "./App.css";
 import Label from "./Label";
@@ -26,11 +26,14 @@ export interface LabelData {
   text: string;
 }
 
-interface AdjustedNode extends Node {
+interface AdjustedNode {
   x: number;
   y: number;
-  dx: number;
-  dy: number;
+  width: number;
+  height: number;
+  text: string;
+  feature: Feature;
+  side: Side;
 }
 
 interface Props {
@@ -88,8 +91,18 @@ class Diagram extends React.PureComponent<Props, State> {
     const topLabels = labelGroups.first;
     const bottomLabels = labelGroups.second;
 
-    const topNodes = createNodes(topLabels, textDimensions, "above");
-    const bottomNodes = createNodes(bottomLabels, textDimensions, "below");
+    const topNodes = createLabels(
+      topLabels,
+      textDimensions,
+      this.props.dimensions,
+      "above"
+    );
+    const bottomNodes = createLabels(
+      bottomLabels,
+      textDimensions,
+      this.props.dimensions,
+      "below"
+    );
 
     /*
      * Determine SVG canvas dimensions dynamically based on what will fit both the drawing area
@@ -99,12 +112,16 @@ class Diagram extends React.PureComponent<Props, State> {
     const minX = Math.min(0, ...allNodes.map((n) => n.x));
     const maxX = Math.max(
       this.props.dimensions.width,
-      ...allNodes.map((n) => n.x + n.dx)
+      ...allNodes.map((n) => n.x + n.width)
     );
     const minY = Math.min(0, ...allNodes.map((n) => n.y));
     const maxY = Math.max(
       this.props.dimensions.height,
-      ...allNodes.map((n) => n.y + n.dy)
+      /*
+       * TODO(andrewhead): fix up this factor of '4', parameterize so that it's one source of
+       * data for this margin shared in all places.
+       */
+      ...allNodes.map((n) => n.y + n.height + 4)
     );
     const width = maxX - minX;
     const height = maxY - minY;
@@ -122,10 +139,10 @@ class Diagram extends React.PureComponent<Props, State> {
                 <rect
                   key={i}
                   className="feature"
-                  x={n.data.feature.x}
-                  y={n.data.feature.y}
-                  width={n.data.feature.width}
-                  height={n.data.feature.height}
+                  x={n.feature.x}
+                  y={n.feature.y}
+                  width={n.feature.width}
+                  height={n.feature.height}
                 />
               ))}
             </g>
@@ -134,11 +151,11 @@ class Diagram extends React.PureComponent<Props, State> {
                 <Label
                   key={i}
                   textClassname="label__text"
-                  x={n.x - n.dx / 2}
+                  x={n.x - n.width / 2}
                   y={n.y}
-                  width={n.dx}
-                  height={n.dy}
-                  text={n.data.text}
+                  width={n.width}
+                  height={n.height}
+                  text={n.text}
                 />
               ))}
             </g>
@@ -147,7 +164,7 @@ class Diagram extends React.PureComponent<Props, State> {
                 <path
                   key={i}
                   className="link"
-                  d={generateLeader(n, n.data.feature, n.data.side)}
+                  d={generateLeader(n, n.feature, n.side)}
                 />
               ))}
             </g>
@@ -189,9 +206,10 @@ function splitLabels(
   };
 }
 
-function createNodes(
+function createLabels(
   labels: LabelData[],
   textDimensions: { [text: string]: Dimensions },
+  drawingAreaDimensions: Dimensions,
   side: Side
 ): AdjustedNode[] {
   /*
@@ -233,13 +251,21 @@ function createNodes(
    */
   const force = new Force({ algorithm: "none" });
   force.nodes(nodes).compute();
-  const renderer = new Renderer({
-    layerGap: 60,
-    nodeHeight: textHeight,
-    direction: side === "above" ? "up" : "down",
-  });
-  renderer.layout(nodes);
-  return nodes as AdjustedNode[];
+
+  const MARGIN = 75;
+
+  return nodes.map((n) => ({
+    x: n.currentPos,
+    y:
+      side === "above"
+        ? -MARGIN
+        : drawingAreaDimensions.height + MARGIN - textHeight,
+    width: n.width,
+    height: textHeight,
+    text: n.data.text,
+    feature: n.data.feature,
+    side,
+  }));
 }
 
 /**
@@ -265,7 +291,7 @@ function generateLeader(label: AdjustedNode, feature: Feature, side: Side) {
   let midpoint = { x: portX, y: site.y };
   const port = {
     x: portX,
-    y: side === "above" ? label.y + label.dy : label.y,
+    y: side === "above" ? label.y + label.height : label.y,
   };
   const pathPoints = [port, midpoint, feature];
 
