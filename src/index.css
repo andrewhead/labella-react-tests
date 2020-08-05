@@ -21,6 +21,10 @@ rect.flag {
   fill: lightblue;
 }
 
+rect.feature {
+  fill: lightcoral;
+}
+
 path.link {
   stroke: white;
   stroke-width: 2;

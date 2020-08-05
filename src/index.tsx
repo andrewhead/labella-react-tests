@@ -1,20 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import Diagram, { LabelSpec } from "./Diagram";
+import Diagram, { LabelData } from "./Diagram";
 import "./index.css";
 import * as serviceWorker from "./serviceWorker";
 
-const LABELS: LabelSpec[] = [
-  { text: "Snape", site: { x: 9, y: 1 } },
-  { text: "Lily", site: { x: 30, y: 0 } },
-  { text: "Ron", site: { x: 61, y: 1 } },
-  { text: "James", site: { x: 87, y: 0 } },
-  { text: "Draco", site: { x: 155, y: 1 } },
-  { text: "Neville", site: { x: 210, y: 0 } },
-  { text: "Harry", site: { x: 211, y: 1 } },
-  { text: "Hermione", site: { x: 259, y: 0 } },
-  { text: "Hagrid", site: { x: 336, y: 1 } },
-  { text: "Voldemort", site: { x: 361, y: 0 } },
+const LABELS: LabelData[] = [
+  { text: "Snape", feature: { x: 9, y: 10, width: 10, height: 10 } },
+  { text: "Lily", feature: { x: 30, y: 0, width: 10, height: 10 } },
+  { text: "Ron", feature: { x: 61, y: 10, width: 10, height: 10 } },
+  { text: "James", feature: { x: 87, y: 0, width: 10, height: 10 } },
+  { text: "Draco", feature: { x: 155, y: 10, width: 10, height: 10 } },
+  { text: "Neville", feature: { x: 210, y: 0, width: 10, height: 10 } },
+  { text: "Harry", feature: { x: 211, y: 10, width: 10, height: 10 } },
+  { text: "Hermione", feature: { x: 259, y: 0, width: 10, height: 10 } },
+  { text: "Hagrid", feature: { x: 336, y: 10, width: 10, height: 10 } },
+  { text: "Voldemort", feature: { x: 361, y: 0, width: 10, height: 10 } },
 ];
 
 ReactDOM.render(

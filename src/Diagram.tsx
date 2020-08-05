@@ -6,12 +6,24 @@ import TextDimensionsCalculator, {
   Dimensions,
 } from "./TextDimensionsCalculator";
 
-export interface LabelSpec {
-  text: string;
+export type Side = "above" | "below";
+
+export interface Feature {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LabelData {
   /**
-   * Site in the diagram that the label is labeling.
+   * Bounding box of feature in the diagram that is being labeled.
    */
-  site: { x: number; y: number };
+  feature: Feature;
+  /**
+   * Text to show in the label.
+   */
+  text: string;
 }
 
 interface AdjustedNode extends Node {
@@ -19,15 +31,10 @@ interface AdjustedNode extends Node {
   y: number;
   dx: number;
   dy: number;
-  /**
-   * Store reference to the renderer that rendered this node, so that it can be acessed again
-   * when generating a path for this node.
-   */
-  renderer: Renderer;
 }
 
 interface Props {
-  labels: { text: string; site: { x: number; y: number } }[];
+  labels: LabelData[];
   /**
    * Dimensions of the drawing area (doesn't include labels).
    */
@@ -81,21 +88,8 @@ class Diagram extends React.PureComponent<Props, State> {
     const topLabels = labelGroups.first;
     const bottomLabels = labelGroups.second;
 
-    const { dimensions: drawAreaDimensions } = this.props;
-    const topNodes = layoutNodes(
-      topLabels,
-      0,
-      drawAreaDimensions.width,
-      textDimensions,
-      "above-drawing-area"
-    );
-    const bottomNodes = layoutNodes(
-      bottomLabels,
-      0,
-      drawAreaDimensions.width,
-      textDimensions,
-      "below-drawing-area"
-    );
+    const topNodes = createNodes(topLabels, textDimensions, "above");
+    const bottomNodes = createNodes(bottomLabels, textDimensions, "below");
 
     /*
      * Determine SVG canvas dimensions dynamically based on what will fit both the drawing area
@@ -123,6 +117,18 @@ class Diagram extends React.PureComponent<Props, State> {
             width={width}
             height={height}
           >
+            <g className="feature-layer">
+              {allNodes.map((n, i) => (
+                <rect
+                  key={i}
+                  className="feature"
+                  x={n.data.feature.x}
+                  y={n.data.feature.y}
+                  width={n.data.feature.width}
+                  height={n.data.feature.height}
+                />
+              ))}
+            </g>
             <g className="label-layer">
               {allNodes.map((n, i) => (
                 <Label
@@ -138,7 +144,11 @@ class Diagram extends React.PureComponent<Props, State> {
             </g>
             <g className="link-layer">
               {allNodes.map((n, i) => (
-                <path key={i} className="link" d={n.renderer.generatePath(n)} />
+                <path
+                  key={i}
+                  className="link"
+                  d={generateLeader(n, n.data.feature, n.data.side)}
+                />
               ))}
             </g>
           </svg>
@@ -153,17 +163,17 @@ class Diagram extends React.PureComponent<Props, State> {
  * above the labels in the second list.
  */
 function splitLabels(
-  labels: LabelSpec[],
+  labels: LabelData[],
   textDimensions: { [text: string]: Dimensions }
 ) {
   const totalWidth = labels.reduce((width, label) => {
     return width + textDimensions[label.text].width;
   }, 0);
   /*
-   * Sort labels from those that refer to sites the highest up in the diagram to those the
+   * Sort labels from those that refer to features the highest up in the diagram to those the
    * lowest down in the diagram.
    */
-  const sorted = [...labels].sort((l1, l2) => l1.site.y - l2.site.y);
+  const sorted = [...labels].sort((l1, l2) => l1.feature.y - l2.feature.y);
   let sumWidth = 0;
   let splitIndex = 0;
   for (let i = 0; i < sorted.length; i++) {
@@ -179,22 +189,38 @@ function splitLabels(
   };
 }
 
-function layoutNodes(
-  labels: LabelSpec[],
-  minX: number,
-  maxX: number,
+function createNodes(
+  labels: LabelData[],
   textDimensions: { [text: string]: Dimensions },
-  direction: "above-drawing-area" | "below-drawing-area"
+  side: Side
 ): AdjustedNode[] {
   /*
    * Once the text widths are available (in a second render), dynamically determine the positions
    * of the width based on their desired positions, and re-render them in their new positions.
    */
   const nodes = labels.map(
-    (d) =>
-      new Node(d.site.x, textDimensions[d.text].width + 4, {
-        text: d.text,
-      })
+    (label) =>
+      new Node(
+        /*
+         * Ideal position for each label is centered over the feature.
+         */
+        label.feature.x + label.feature.width / 2,
+        /*
+         * Add a bit of padding on either side of the label.
+         */
+        textDimensions[label.text].width + 4,
+        {
+          /*
+           * Associate data with this node that can be used for rendering it:
+           * * text: the text to place in the node
+           * * side: which side of the diagram the label will be placed on
+           * * feature: the feature in the diagram the label is labeling
+           */
+          text: label.text,
+          feature: label.feature,
+          side,
+        }
+      )
   );
 
   let textHeight = Math.max(
@@ -202,23 +228,55 @@ function layoutNodes(
   );
 
   /*
-   * Lay out the nodes.
+   * Lay out the nodes. Do not allow multiple layers, as it will intefere with us providing
+   * legible labeling on the boundaries and using simple computations to compute the leader lines.
    */
-  const force = new Force({ minPos: minX, maxPos: maxX });
+  const force = new Force({ algorithm: "none" });
   force.nodes(nodes).compute();
   const renderer = new Renderer({
     layerGap: 60,
     nodeHeight: textHeight,
-    direction: direction === "above-drawing-area" ? "up" : "down",
+    direction: side === "above" ? "up" : "down",
   });
   renderer.layout(nodes);
+  return nodes as AdjustedNode[];
+}
 
+/**
+ * Generate L-shaped leaders, which seem to have a good balance between usability and user
+ * preferability. See Barth et al. 2019, "On the readability of leaders in boundary labeling".
+ */
+function generateLeader(label: AdjustedNode, feature: Feature, side: Side) {
   /*
-   * Save a reference to the renderer for generating paths.
+   * Label port is centered horizontally with respect to label.
    */
-  const adjusted = nodes as AdjustedNode[];
-  adjusted.forEach((n) => (n.renderer = renderer));
-  return adjusted;
+  const portX = label.x;
+  let site;
+  if (portX < feature.x) {
+    site = { x: feature.x, y: feature.y + feature.height / 2 };
+  } else if (portX > feature.x + feature.width) {
+    site = { x: feature.x + feature.width, y: feature.y + feature.height / 2 };
+  } else {
+    site = {
+      x: portX,
+      y: side === "above" ? feature.y : feature.y + feature.height,
+    };
+  }
+  let midpoint = { x: portX, y: site.y };
+  const port = {
+    x: portX,
+    y: side === "above" ? label.y + label.dy : label.y,
+  };
+  const pathPoints = [port, midpoint, feature];
+
+  /**
+   * TODO---stop at the edge of the feature. Feature should have bounding box.
+   */
+  return (
+    `M ${port.x}, ${port.y}` +
+    `L ${midpoint.x}, ${midpoint.y}` +
+    `L ${site.x}, ${site.y}`
+  );
 }
 
 export default Diagram;
