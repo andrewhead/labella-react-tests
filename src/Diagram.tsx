@@ -77,9 +77,11 @@ class Diagram extends React.PureComponent<Props, State> {
      * Split nodes into those that will appear above and below the diagram. Lay them out separately.
      */
     const { labels } = this.props;
+    const labelGroups = splitLabels(labels, textDimensions);
+    const topLabels = labelGroups.first;
+    const bottomLabels = labelGroups.second;
+
     const { dimensions: drawAreaDimensions } = this.props;
-    const topLabels = labels.slice(0, labels.length / 2);
-    const bottomLabels = labels.slice(labels.length / 2, labels.length);
     const topNodes = layoutNodes(
       topLabels,
       0,
@@ -144,6 +146,37 @@ class Diagram extends React.PureComponent<Props, State> {
       </div>
     );
   }
+}
+
+/**
+ * Split labels into two lists of roughly equal total width. The first list's labels will all be
+ * above the labels in the second list.
+ */
+function splitLabels(
+  labels: LabelSpec[],
+  textDimensions: { [text: string]: Dimensions }
+) {
+  const totalWidth = labels.reduce((width, label) => {
+    return width + textDimensions[label.text].width;
+  }, 0);
+  /*
+   * Sort labels from those that refer to sites the highest up in the diagram to those the
+   * lowest down in the diagram.
+   */
+  const sorted = [...labels].sort((l1, l2) => l1.site.y - l2.site.y);
+  let sumWidth = 0;
+  let splitIndex = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    sumWidth += textDimensions[sorted[i].text].width;
+    if (sumWidth > totalWidth / 2) {
+      splitIndex = i;
+      break;
+    }
+  }
+  return {
+    first: sorted.slice(0, splitIndex),
+    second: sorted.slice(splitIndex, labels.length),
+  };
 }
 
 function layoutNodes(

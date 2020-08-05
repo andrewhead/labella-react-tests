@@ -5,15 +5,15 @@ import "./index.css";
 import * as serviceWorker from "./serviceWorker";
 
 const LABELS: LabelSpec[] = [
-  { text: "Snape", site: { x: 9, y: 0 } },
+  { text: "Snape", site: { x: 9, y: 1 } },
   { text: "Lily", site: { x: 30, y: 0 } },
-  { text: "Ron", site: { x: 61, y: 0 } },
+  { text: "Ron", site: { x: 61, y: 1 } },
   { text: "James", site: { x: 87, y: 0 } },
-  { text: "Draco", site: { x: 155, y: 0 } },
+  { text: "Draco", site: { x: 155, y: 1 } },
   { text: "Neville", site: { x: 210, y: 0 } },
-  { text: "Harry", site: { x: 211, y: 0 } },
+  { text: "Harry", site: { x: 211, y: 1 } },
   { text: "Hermione", site: { x: 259, y: 0 } },
-  { text: "Hagrid", site: { x: 336, y: 0 } },
+  { text: "Hagrid", site: { x: 336, y: 1 } },
   { text: "Voldemort", site: { x: 361, y: 0 } },
 ];
 
