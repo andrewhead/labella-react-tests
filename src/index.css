@@ -12,12 +12,17 @@ code {
     monospace;
 }
 
+.label__text {
+  fill: black;
+  font-size: 12px;
+}
+
 rect.flag {
-  fill: blue;
+  fill: lightblue;
 }
 
 path.link {
-  stroke: black;
+  stroke: white;
   stroke-width: 2;
   opacity: 0.6;
   fill: none;

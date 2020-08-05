@@ -1,7 +1,10 @@
 import { Force, Node, Renderer } from "labella";
 import React from "react";
 import "./App.css";
-import TextWidthCalculator from "./TextWidthCalculator";
+import Label from "./Label";
+import TextDimensionsCalculator, {
+  Dimensions,
+} from "./TextDimensionsCalculator";
 
 interface AdjustedNode extends Node {
   x: number;
@@ -15,53 +18,62 @@ interface Props {
 }
 
 interface State {
-  textWidths: { [text: string]: number } | null;
+  textDimensions: { [text: string]: Dimensions } | null;
 }
 
 /*
- * Some potentially useful references for libraries for adaptively sizing 'text' elements:
- * * https://blog.logrocket.com/building-size-aware-react-components-b4c37e7d96e7/
- * * https://medium.com/hootsuite-engineering/resizing-react-components-6f911ba39b59
- * * https://medium.com/trabe/measuring-elements-in-react-6bf343b65347
- *
  * Starter source code from view-source:https://twitter.github.io/labella.js/with_text2.html
  */
 class App extends React.PureComponent<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      textWidths: null,
+      textDimensions: null,
     };
-    this.onWidthsAvailable = this.onWidthsAvailable.bind(this);
+    this.onTextDimensionsAvailable = this.onTextDimensionsAvailable.bind(this);
   }
 
-  onWidthsAvailable(widths: { [text: string]: number }) {
-    this.setState({ textWidths: widths });
+  onTextDimensionsAvailable(dimensions: { [text: string]: Dimensions }) {
+    this.setState({ textDimensions: dimensions });
   }
 
   render() {
-    const { textWidths } = this.state;
-    if (textWidths === null) {
+    /**
+     * First, render just the text elements to get their widths. These widths are needed in order
+     * to dynamically layout the elements.
+     */
+    const { textDimensions: textDimensions } = this.state;
+    if (textDimensions === null) {
       return (
         <svg>
-          <TextWidthCalculator
+          <TextDimensionsCalculator
+            className="label__text"
             texts={this.props.labels.map((l) => l.text)}
-            onWidthsAvailable={this.onWidthsAvailable}
+            onDimensionsAvailable={this.onTextDimensionsAvailable}
           />
         </svg>
       );
     }
 
+    /**
+     * Once the text widths are available (in a second render), dynamically determine the positions
+     * of the width based on their desired positions, and re-render them in their new positions.
+     */
     const nodes = this.props.labels.map(
-      (d) => new Node(d.x * 2.5, textWidths[d.text], { text: d.text })
+      (d) =>
+        new Node(d.x * 2, textDimensions[d.text].width + 4, { text: d.text })
     );
 
     const force = new Force({ minPos: 0, maxPos: 960 });
     force.nodes(nodes).compute();
 
+    let textHeight = 0;
+    Object.values(textDimensions).forEach((d) => {
+      textHeight = d.height > textHeight ? d.height : textHeight;
+    });
     const renderer = new Renderer({
       layerGap: 60,
-      nodeHeight: 12,
+      nodeHeight: textHeight,
     });
 
     renderer.layout(nodes);
@@ -76,12 +88,15 @@ class App extends React.PureComponent<Props, State> {
           <svg width={svgWidth} height={svgHeight}>
             <g className="label-layer">
               {adjustedNodes.map((n, i) => (
-                <g key={i} transform={`translate(${n.x - n.dx / 2}, ${n.y})`}>
-                  <rect className="flag" width={n.dx} height={n.dy} />
-                  <text x={0} y={15} fill="#fff">
-                    {n.data.text}
-                  </text>
-                </g>
+                <Label
+                  key={i}
+                  textClassname="label__text"
+                  x={n.x - n.dx / 2}
+                  y={n.y}
+                  width={n.dx}
+                  height={n.dy}
+                  text={n.data.text}
+                />
               ))}
             </g>
             <g className="link-layer">
