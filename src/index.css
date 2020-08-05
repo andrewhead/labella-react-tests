@@ -18,16 +18,19 @@ code {
 }
 
 rect.flag {
-  fill: lightblue;
+  stroke: black;
+  fill: lightyellow;
 }
 
 rect.feature {
-  fill: lightcoral;
+  stroke: green;
+  fill: none;
+  opacity: 0.6;
 }
 
 path.link {
-  stroke: white;
-  stroke-width: 2;
+  stroke: black;
+  stroke-width: 1;
   opacity: 0.6;
   fill: none;
 }

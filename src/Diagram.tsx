@@ -15,6 +15,7 @@ export interface BoundingBox {
 
 export interface Entity {
   id: string;
+  tex?: string;
   /**
    * Bounding box of feature in the diagram that is being labeled.
    */
@@ -84,12 +85,25 @@ class Figure extends React.PureComponent<Props, State> {
       );
     }
 
+    const { entities, drawingArea } = this.props;
+
+    /*
+     * Filter entities to show a label only the first time an entity appears.
+     */
+    const filtered = [];
+    const texIncluded: { [tex: string]: boolean } = {};
+    for (const entity of entities) {
+      if (entity.tex !== undefined && texIncluded[entity.tex] !== true) {
+        filtered.push(entity);
+        texIncluded[entity.tex] = true;
+      }
+    }
+
     /*
      * Split entities into two groups: those that will have labels that appear above the figure,
      * and those that will have labels that appear below the figure.
      */
-    const { entities, drawingArea } = this.props;
-    const entityGroups = splitEntities(entities, svgTextDimensions);
+    const entityGroups = splitEntities(filtered, svgTextDimensions);
     const topEntities = entityGroups.first;
     const bottomEntities = entityGroups.second;
 
@@ -134,46 +148,44 @@ class Figure extends React.PureComponent<Props, State> {
     const height = bottom - top;
 
     return (
-      <div className="App">
-        <header className="App-header">
-          <svg
-            viewBox={`${left} ${top} ${width} ${height}`}
-            width={width}
-            height={height}
-          >
-            <g className="feature-layer">
-              {labels.map((l) => (
-                <rect
-                  key={l.entity.id}
-                  className="feature"
-                  x={l.entity.location.left}
-                  y={l.entity.location.top}
-                  width={l.entity.location.width}
-                  height={l.entity.location.height}
-                />
-              ))}
-            </g>
-            <g className="label-layer">
-              {labels.map((l) => (
-                <Label
-                  key={l.entity.id}
-                  textClassname="label__text"
-                  x={l.x - l.width / 2}
-                  y={l.y}
-                  width={l.width}
-                  height={l.height}
-                  text={l.text}
-                  labelPadding={LABEL_PADDING}
-                />
-              ))}
-            </g>
-            <g className="link-layer">
-              {labels.map((l) => (
-                <path key={l.entity.id} className="link" d={createLeader(l)} />
-              ))}
-            </g>
-          </svg>
-        </header>
+      <div className="figure">
+        <svg
+          viewBox={`${left} ${top} ${width} ${height}`}
+          width={width}
+          height={height}
+        >
+          <g className="feature-layer">
+            {entities.map((e) => (
+              <rect
+                key={e.id}
+                className="feature"
+                x={e.location.left}
+                y={e.location.top}
+                width={e.location.width}
+                height={e.location.height}
+              />
+            ))}
+          </g>
+          <g className="label-layer">
+            {labels.map((l) => (
+              <Label
+                key={l.entity.id}
+                textClassname="label__text"
+                x={l.x - l.width / 2}
+                y={l.y}
+                width={l.width}
+                height={l.height}
+                text={l.text}
+                labelPadding={LABEL_PADDING}
+              />
+            ))}
+          </g>
+          <g className="link-layer">
+            {labels.map((l) => (
+              <path key={l.entity.id} className="link" d={createLeader(l)} />
+            ))}
+          </g>
+        </svg>
       </div>
     );
   }
@@ -215,7 +227,7 @@ function splitEntities(
 function createLabels(
   entities: Entity[],
   textDimensions: { [text: string]: Dimensions },
-  drawingArea: Dimensions,
+  drawingArea: BoundingBox,
   where: Side,
   boundaryMargin?: number | undefined,
   labelPadding?: number | undefined
@@ -256,8 +268,8 @@ function createLabels(
   boundaryMargin = boundaryMargin || 0;
   const y =
     where === "above"
-      ? -boundaryMargin - labelHeight
-      : drawingArea.height + boundaryMargin;
+      ? drawingArea.top - boundaryMargin - labelHeight
+      : drawingArea.top + drawingArea.height + boundaryMargin;
 
   return nodes.map((n) => ({
     x: n.currentPos,
