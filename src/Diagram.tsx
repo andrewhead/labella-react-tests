@@ -27,8 +27,8 @@ export interface Entity {
 }
 
 interface LabelNode {
-  x: number;
-  y: number;
+  left: number;
+  top: number;
   width: number;
   height: number;
   text: string;
@@ -131,19 +131,15 @@ class Figure extends React.PureComponent<Props, State> {
      * Size the SVG canvas dynamically so that all labels will be showing.
      */
     const labels = [...topLabels, ...bottomLabels];
-    const left = Math.min(0, ...labels.map((l) => l.x));
+    const left = Math.min(0, ...labels.map((l) => l.left));
     const right = Math.max(
       drawingArea.width,
-      ...labels.map((l) => l.x + l.width)
+      ...labels.map((l) => l.left + l.width)
     );
-    const top = Math.min(0, ...labels.map((l) => l.y));
+    const top = Math.min(0, ...labels.map((l) => l.top));
     const bottom = Math.max(
       drawingArea.height,
-      /*
-       * TODO(andrewhead): fix up this factor of '4', parameterize so that it's one source of
-       * data for this margin shared in all places.
-       */
-      ...labels.map((l) => l.y + l.height + 4)
+      ...labels.map((l) => l.top + l.height + 4)
     );
     const width = right - left;
     const height = bottom - top;
@@ -151,56 +147,56 @@ class Figure extends React.PureComponent<Props, State> {
     const FEATURE_MARGIN = 2;
 
     return (
-      <div style={{ position: "absolute", left, top }} className="figure">
-        <svg
-          viewBox={`${left} ${top} ${width} ${height}`}
-          width={width}
-          height={height}
-        >
-          <g className="feature-layer">
-            {filtered.map((e) => (
-              <rect
-                key={e.id}
-                className="feature"
-                x={e.location.left}
-                y={e.location.top}
-                width={e.location.width}
-                height={e.location.height}
+      <svg
+        style={{ position: "absolute", left, top }}
+        className="figure"
+        viewBox={`${left} ${top} ${width} ${height}`}
+        width={width}
+        height={height}
+      >
+        <g className="feature-layer">
+          {filtered.map((e) => (
+            <rect
+              key={e.id}
+              className="feature"
+              x={e.location.left}
+              y={e.location.top}
+              width={e.location.width}
+              height={e.location.height}
+            />
+          ))}
+        </g>
+        <g className="label-layer">
+          {labels.map((l) => (
+            <Label
+              key={l.entity.id}
+              textClassname="label__text"
+              x={l.left}
+              y={l.top}
+              width={l.width}
+              height={l.height}
+              text={l.text}
+              labelPadding={LABEL_PADDING}
+            />
+          ))}
+        </g>
+        <g className="leader-layer">
+          {labels.map((l) => (
+            <g key={l.entity.id} className="leader">
+              <path
+                key={`${l.entity.id}-leader-background`}
+                className="leader-background"
+                d={createLeader(l, FEATURE_MARGIN)}
               />
-            ))}
-          </g>
-          <g className="label-layer">
-            {labels.map((l) => (
-              <Label
-                key={l.entity.id}
-                textClassname="label__text"
-                x={l.x - l.width / 2}
-                y={l.y}
-                width={l.width}
-                height={l.height}
-                text={l.text}
-                labelPadding={LABEL_PADDING}
+              <path
+                key={`${l.entity.id}-leader-line`}
+                className="leader-line"
+                d={createLeader(l, FEATURE_MARGIN)}
               />
-            ))}
-          </g>
-          <g className="leader-layer">
-            {labels.map((l) => (
-              <g key={l.entity.id} className="leader">
-                <path
-                  key={`${l.entity.id}-leader-background`}
-                  className="leader-background"
-                  d={createLeader(l, FEATURE_MARGIN)}
-                />
-                <path
-                  key={`${l.entity.id}-leader-line`}
-                  className="leader-line"
-                  d={createLeader(l, FEATURE_MARGIN)}
-                />
-              </g>
-            ))}
-          </g>
-        </svg>
-      </div>
+            </g>
+          ))}
+        </g>
+      </svg>
     );
   }
 }
@@ -276,7 +272,11 @@ function createLabels(
     const labelWidth = textDimensions[e.label].width + (labelPadding || 0) * 2;
     return new Labella.Node(idealX, labelWidth, { entityId: e.id });
   });
-  const force = new Labella.Force({ algorithm: "none", nodeSpacing: 8 });
+  const force = new Labella.Force({
+    algorithm: "none",
+    nodeSpacing: 8,
+    minPos: null,
+  });
   force.nodes(nodes).compute();
 
   boundaryMargin = boundaryMargin || 0;
@@ -286,8 +286,12 @@ function createLabels(
       : drawingArea.top + drawingArea.height + boundaryMargin;
 
   return nodes.map((n) => ({
-    x: n.currentPos,
-    y,
+    /*
+     * The node returned by 'Force' sets 'currentPos' to the center of the label.
+     * Get the left side of the label by subtracting half the label width.
+     */
+    left: n.currentPos - n.width / 2,
+    top: y,
     width: n.width,
     height: labelHeight,
     entity: entitiesById[n.data.entityId],
@@ -308,11 +312,25 @@ function createLeader(label: LabelNode, featureMargin?: number) {
   featureMargin = featureMargin || 0;
 
   /*
-   * The leader leaves the label from the middle of the label.
+   * The leader leaves the label from .
    */
+  const featureCenterX = feature.left + feature.width / 2;
+  const PORT_PADDING = 2;
+
+  let portX;
+  if (
+    featureCenterX > label.left &&
+    featureCenterX < label.left + label.width
+  ) {
+    portX = feature.left + feature.width / 2;
+  } else if (feature.left > label.left + label.width) {
+    portX = label.left + label.width - PORT_PADDING;
+  } else {
+    portX = label.left + PORT_PADDING;
+  }
   const port = {
-    x: label.x,
-    y: where === "above" ? label.y + label.height : label.y,
+    x: portX,
+    y: where === "above" ? label.top + label.height : label.top,
   };
 
   /*
@@ -322,13 +340,13 @@ function createLeader(label: LabelNode, featureMargin?: number) {
    * on the side of the feature.
    */
   let site;
-  if (label.x < feature.left) {
+  if (port.x < feature.left) {
     site = {
       x: feature.left - featureMargin,
       y: feature.top + feature.height / 2,
       side: "left",
     };
-  } else if (label.x > feature.left + feature.width) {
+  } else if (port.x > feature.left + feature.width) {
     site = {
       x: feature.left + feature.width + featureMargin,
       y: feature.top + feature.height / 2,
@@ -352,7 +370,7 @@ function createLeader(label: LabelNode, featureMargin?: number) {
    * The leader extends vertically from the label and, if it is not aligned horizontally
    * with the feature, makes an L-shaped bend at the y-position of the feature.
    */
-  let midpoint = { x: label.x, y: site.y };
+  let midpoint = { x: port.x, y: site.y };
 
   /*
    * Add an edge to the leader line covering the entire side of the feature on which the leader

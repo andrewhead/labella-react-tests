@@ -29,7 +29,7 @@ declare module "labella" {
   }
 
   interface ForceOptions {
-    minPos?: number;
+    minPos?: number | null;
     maxPos?: number | null;
     lineSpacing?: number;
     nodeSpacing?: number;

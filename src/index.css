@@ -29,7 +29,7 @@ rect.feature {
 }
 
 g.leader {
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 g.leader:hover {
@@ -38,12 +38,12 @@ g.leader:hover {
 
 path.leader-background {
   stroke: white;
-  stroke-width: 4;
+  stroke-width: 2;
   fill: none;
 }
 
 path.leader-line {
-  stroke: lightseagreen;
+  stroke: blue;
   stroke-width: 1;
   fill: none;
 }
